@@ -12,7 +12,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/1, start_timeout/1]).
+-export([start_link/1, start_timeout/1, interval/0]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -37,6 +37,9 @@
 start_link(CM) ->
     gen_server:start_link(?MODULE, CM, []).
 
+interval() ->
+    gen_server:cast(?MODULE, interval).
+
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
@@ -50,14 +53,14 @@ init(CM) ->
 handle_call(_Call, _From, State) ->
     {noreply, State}.
 
-handle_cast(_Cast, State) ->
-    {noreply, State}.
-
-handle_info(interval, State) ->
+handle_cast(interval, State) ->
     (State#gen_interval_state.cm):handle_interval(),
     Interval = State#gen_interval_state.interval,
     NewState = State#gen_interval_state{remaining=Interval},
     {noreply, start_timeout(NewState)};
+handle_cast(_Cast, State) ->
+    {noreply, State}.
+
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -72,7 +75,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 
 start_timeout(#gen_interval_state{remaining=Remaining}=State) when Remaining < 4294967295 ->
-    erlang:send_after(Remaining, self(), interval),
+    timer:apply_after(Remaining, ?MODULE, interval, []),
     State;
 start_timeout(State) ->
     #gen_interval_state{
