@@ -35,7 +35,10 @@ handle_cast_interval_test() ->
     {noreply, NewState} = gen_interval:handle_cast(interval,
                                                   State),
     ?assertEqual(true, meck:called(CM, handle_interval, [])),
-    ?assertEqual(State, NewState),
+    ?assertNotEqual(undefined, NewState#gen_interval_state.tref),
+    % As we just have checked tref we reset it to undefined to check all the
+    % otehr fields.
+    ?assertEqual(State, NewState#gen_interval_state{tref=undefined}),
     ?assert(meck:validate(CM)),
     meck:unload(CM).
 

@@ -12,7 +12,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/1, start_timeout/1, interval/0]).
+-export([start_link/1, start_timeout/1, interval/1]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -37,8 +37,8 @@
 start_link(CM) ->
     gen_server:start_link(?MODULE, CM, []).
 
-interval() ->
-    gen_server:cast(?MODULE, interval).
+interval(Pid) ->
+    gen_server:cast(Pid, interval).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
@@ -47,7 +47,8 @@ interval() ->
 init(CM) ->
     Interval = CM:interval(),
     Remaining = Interval,
-    State = #gen_interval_state{interval=Interval, remaining=Remaining},
+    State = #gen_interval_state{cm=CM, self=self(), interval=Interval,
+                                remaining=Remaining},
     {ok, start_timeout(State)}.
 
 handle_call(_Call, _From, State) ->
@@ -74,14 +75,12 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
 
-start_timeout(#gen_interval_state{remaining=Remaining}=State) when Remaining < 4294967295 ->
-    timer:apply_after(Remaining, ?MODULE, interval, []),
-    State;
-start_timeout(State) ->
-    #gen_interval_state{
-        remaining=Remaining,
-        interval=Interval
-          } = State,
+start_timeout(#gen_interval_state{remaining=Remaining, self=Self}=State) when
+        Remaining < 4294967295 ->
+    Ref = timer:apply_after(Remaining, ?MODULE, interval, [Self]),
+    State#gen_interval_state{tref=Ref};
+start_timeout(#gen_interval_state{remaining=Remaining} = State) ->
     Time = Remaining - 4294967295,
-    TRef = timer:apply_after(Time, ?MODULE, start_timeout, [Interval]),
-    State#gen_interval_state{remaining=Time, tref=TRef}.
+    TimerState = State#gen_interval_state{remaining = Time},
+    TRef = timer:apply_after(Time, ?MODULE, start_timeout, [TimerState]),
+    TimerState#gen_interval_state{remaining=Time, tref=TRef}.
