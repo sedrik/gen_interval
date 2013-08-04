@@ -23,7 +23,7 @@ init_test() ->
     ?assert(meck:validate(CM)),
     meck:unload(CM).
 
-handle_info_interval_test() ->
+handle_cast_interval_test() ->
     CM = callback_module,
     meck:new(CM),
     meck:expect(CM, handle_interval, fun() -> ok end),
@@ -32,7 +32,7 @@ handle_info_interval_test() ->
             remaining=1000,
             interval=1000
             },
-    {noreply, NewState} = gen_interval:handle_info(interval,
+    {noreply, NewState} = gen_interval:handle_cast(interval,
                                                   State),
     ?assertEqual(true, meck:called(CM, handle_interval, [])),
     ?assertEqual(State, NewState),
